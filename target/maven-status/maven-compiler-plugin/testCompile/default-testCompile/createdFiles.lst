@@ -1,0 +1,8 @@
+com\apnileap\teamc\support\AbstractIntegrationTest.class
+com\apnileap\teamc\service\BackupServiceCompensationTest.class
+com\apnileap\teamc\service\RestoreServiceTest.class
+com\apnileap\teamc\support\TestDataFactory.class
+com\apnileap\teamc\service\BackupServiceConcurrencyTest.class
+com\apnileap\teamc\service\BackupServiceIdempotencyTest.class
+com\apnileap\teamc\service\RecoveryVerificationTest.class
+com\apnileap\teamc\service\RestoreRetentionExpiryTest.class

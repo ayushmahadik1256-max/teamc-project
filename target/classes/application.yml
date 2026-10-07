@@ -1,0 +1,45 @@
+spring:
+  application:
+    name: teamc-metadata-version-restore-manager
+  datasource:
+    url: jdbc:postgresql://localhost:5432/teamc
+    username: postgres
+    password: postgres
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+        jdbc:
+          time_zone: UTC
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+server:
+  port: 8083
+
+teamc:
+  integration:
+    team-a-base-url: http://localhost:8081
+    team-b-base-url: http://localhost:8082
+    use-mock-clients: true
+    call-timeout-ms: 3000
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+  api-docs:
+    path: /v3/api-docs
+
+logging:
+  level:
+    com.apnileap.teamc: INFO
+    org.hibernate.SQL: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%thread] [%X{correlation_id:-}] %logger{36} - %msg%n"
