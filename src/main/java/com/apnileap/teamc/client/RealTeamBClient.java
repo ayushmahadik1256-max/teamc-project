@@ -29,9 +29,10 @@ public class RealTeamBClient implements TeamBClient {
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public DedupResult computeDedup(UUID fileId, String correlationId) {
         try {
-            Map<?, ?> raw = webClient.post()
+            Map<String, Object> raw = webClient.post()
                     .uri("/api/v1/dedup/compute")
                     .bodyValue(Map.of("file_id", fileId.toString()))
                     .retrieve()
@@ -42,18 +43,22 @@ public class RealTeamBClient implements TeamBClient {
                 throw new DownstreamServiceException("Empty response received from Team B");
             }
 
-            // Safely unwrap data from {"data": {...}, "meta": {...}} envelope
-            Map<?, ?> data = (raw.get("data") instanceof Map) ? (Map<?, ?>) raw.get("data") : raw;
+            Map<String, Object> data = (raw.get("data") instanceof Map) ? (Map<String, Object>) raw.get("data") : raw;
 
-            String dedupId = String.valueOf(data.getOrDefault("dedup_result_id", data.getOrDefault("dedupResultId", "dedup-" + UUID.randomUUID().toString().substring(0, 8))));
-            int unique = data.get("unique_chunks") instanceof Number ? ((Number) data.get("unique_chunks")).intValue() : 1;
-            int duplicate = data.get("duplicate_chunks") instanceof Number ? ((Number) data.get("duplicate_chunks")).intValue() : 0;
-            double savings = data.get("savings_ratio") instanceof Number ? ((Number) data.get("savings_ratio")).doubleValue() : 0.68;
-            String merkleRoot = String.valueOf(data.getOrDefault("merkle_root", data.getOrDefault("merkleRoot", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855")));
+            Object dedupObj = data != null ? data.get("dedup_result_id") : null;
+            if (dedupObj == null && data != null) dedupObj = data.get("dedupResultId");
+            String dedupId = dedupObj != null ? dedupObj.toString() : "dedup-" + UUID.randomUUID().toString().substring(0, 8);
 
-            @SuppressWarnings("unchecked")
-            List<String> chunkRefs = (data.get("chunk_refs") instanceof List) ? (List<String>) data.get("chunk_refs")
-                    : (data.get("unique_chunk_ids") instanceof List ? (List<String>) data.get("unique_chunk_ids") : List.of("chk-001"));
+            int unique = (data != null && data.get("unique_chunks") instanceof Number) ? ((Number) data.get("unique_chunks")).intValue() : 1;
+            int duplicate = (data != null && data.get("duplicate_chunks") instanceof Number) ? ((Number) data.get("duplicate_chunks")).intValue() : 0;
+            double savings = (data != null && data.get("savings_ratio") instanceof Number) ? ((Number) data.get("savings_ratio")).doubleValue() : 0.68;
+
+            Object rootObj = data != null ? data.get("merkle_root") : null;
+            if (rootObj == null && data != null) rootObj = data.get("merkleRoot");
+            String merkleRoot = rootObj != null ? rootObj.toString() : "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
+
+            List<String> chunkRefs = (data != null && data.get("chunk_refs") instanceof List) ? (List<String>) data.get("chunk_refs")
+                    : ((data != null && data.get("unique_chunk_ids") instanceof List) ? (List<String>) data.get("unique_chunk_ids") : List.of("chk-001"));
 
             return new DedupResult(dedupId, unique, duplicate, savings, merkleRoot, chunkRefs);
         } catch (WebClientResponseException e) {
@@ -66,9 +71,10 @@ public class RealTeamBClient implements TeamBClient {
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public boolean verifyIntegrity(UUID fileId, String merkleRoot, String correlationId) {
         try {
-            Map<?, ?> raw = webClient.post()
+            Map<String, Object> raw = webClient.post()
                     .uri("/api/v1/integrity/verify")
                     .bodyValue(Map.of(
                             "file_id", fileId.toString(),
@@ -79,9 +85,8 @@ public class RealTeamBClient implements TeamBClient {
                     .block(Duration.ofMillis(timeoutMs));
 
             if (raw == null) return false;
-            Map<?, ?> data = (raw.get("data") instanceof Map) ? (Map<?, ?>) raw.get("data") : raw;
+            Map<String, Object> data = (raw.get("data") instanceof Map) ? (Map<String, Object>) raw.get("data") : raw;
 
-            // Check is_valid, verified, or root-level verified
             return Boolean.TRUE.equals(data.get("is_valid")) || Boolean.TRUE.equals(data.get("verified")) || Boolean.TRUE.equals(raw.get("verified"));
         } catch (RuntimeException e) {
             log.warn("Team B integrity verification call failed fileId={} correlationId={}", fileId, correlationId, e);

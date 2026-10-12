@@ -28,9 +28,10 @@ public class RealTeamAClient implements TeamAClient {
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public AllocationDecision requestScheduling(UUID backupId, UUID fileId, String priority, String correlationId) {
         try {
-            Map<?, ?> raw = webClient.post()
+            Map<String, Object> raw = webClient.post()
                     .uri("/internal/v1/scheduler/run")
                     .bodyValue(Map.of(
                             "backup_id", backupId.toString(),
@@ -45,17 +46,18 @@ public class RealTeamAClient implements TeamAClient {
                 throw new DownstreamServiceException("Empty response received from Team A");
             }
 
-            // Safely unwrap from {"data": {...}, "meta": {...}} envelope
-            Map<?, ?> data = (raw.get("data") instanceof Map) ? (Map<?, ?>) raw.get("data") : raw;
+            Map<String, Object> data = (raw.get("data") instanceof Map) ? (Map<String, Object>) raw.get("data") : raw;
 
-            String decisionId = data.get("decision_id") != null ? String.valueOf(data.get("decision_id"))
-                    : (data.get("decisionId") != null ? String.valueOf(data.get("decisionId")) : "dec-" + UUID.randomUUID().toString().substring(0, 8));
-            
-            // Guarantee a non-null leaseId
-            String leaseId = data.get("lease_id") != null ? String.valueOf(data.get("lease_id"))
-                    : (data.get("leaseId") != null ? String.valueOf(data.get("leaseId")) : "lease-worker-01-" + UUID.randomUUID().toString().substring(0, 8));
+            Object decObj = data != null ? data.get("decision_id") : null;
+            if (decObj == null && data != null) decObj = data.get("decisionId");
+            String decisionId = decObj != null ? decObj.toString() : "dec-" + UUID.randomUUID().toString().substring(0, 8);
 
-            String state = data.get("state") != null ? String.valueOf(data.get("state")) : "GRANTED";
+            Object leaseObj = data != null ? data.get("lease_id") : null;
+            if (leaseObj == null && data != null) leaseObj = data.get("leaseId");
+            String leaseId = leaseObj != null ? leaseObj.toString() : "lease-worker-01-" + UUID.randomUUID().toString().substring(0, 8);
+
+            Object stateObj = data != null ? data.get("state") : null;
+            String state = stateObj != null ? stateObj.toString() : "GRANTED";
 
             return new AllocationDecision(decisionId, leaseId, state);
         } catch (WebClientResponseException e) {

@@ -120,10 +120,7 @@ public class BackupService {
         }
 
         final UUID backupId = backup.getBackupId();
-      eventStreamService.publishEvent("BACKUP_QUEUED", Map.of(
-    "backupId", backupId, 
-    "leaseId", decision.leaseId() == null ? "lease-none" : decision.leaseId()
-     ));
+        eventStreamService.publishEvent("BACKUP_REQUESTED", Map.of("backupId", backupId, "fileId", file.getFileId()));
 
         try {
             // 3. Request scheduling & worker lease from Team A (State: QUEUED)
@@ -139,10 +136,11 @@ public class BackupService {
             });
             backup.setDecisionId(decision.decisionId());
             backup.setLeaseId(decision.leaseId());
-           eventStreamService.publishEvent("BACKUP_DEDUPLICATING", Map.of(
-            "backupId", backupId, 
-         "dedupResultId", dedup.dedupResultId() == null ? "" : dedup.dedupResultId()
-         ));
+            // Safe call AFTER decision is declared:
+            eventStreamService.publishEvent("BACKUP_QUEUED", Map.of(
+                    "backupId", backupId, 
+                    "leaseId", decision.leaseId() == null ? "lease-none" : decision.leaseId()
+            ));
 
             // 4 & 5. Chunking & deduplication via Team B (State: CHUNKING -> DEDUPLICATING)
             requiresNewTx.executeWithoutResult(status -> {
@@ -152,6 +150,7 @@ public class BackupService {
             });
             eventStreamService.publishEvent("BACKUP_CHUNKING", Map.of("backupId", backupId));
 
+            // Call Team B
             DedupResult dedup = teamBClient.computeDedup(file.getFileId(), corr);
 
             requiresNewTx.executeWithoutResult(status -> {
@@ -161,7 +160,11 @@ public class BackupService {
                 backupRepository.saveAndFlush(b);
             });
             backup.setDedupResultId(dedup.dedupResultId());
-            eventStreamService.publishEvent("BACKUP_DEDUPLICATING", Map.of("backupId", backupId, "dedupResultId", dedup.dedupResultId()));
+            // Safe call AFTER dedup is declared:
+            eventStreamService.publishEvent("BACKUP_DEDUPLICATING", Map.of(
+                    "backupId", backupId, 
+                    "dedupResultId", dedup.dedupResultId() == null ? "dedup-none" : dedup.dedupResultId()
+            ));
 
             // Transition through UPLOADING state per design state machine
             requiresNewTx.executeWithoutResult(status -> {
