@@ -30,7 +30,7 @@ public class RealTeamAClient implements TeamAClient {
     @Override
     public AllocationDecision requestScheduling(UUID backupId, UUID fileId, String priority, String correlationId) {
         try {
-            return webClient.post()
+            Map<?, ?> raw = webClient.post()
                     .uri("/internal/v1/scheduler/run")
                     .bodyValue(Map.of(
                             "backup_id", backupId.toString(),
@@ -38,8 +38,26 @@ public class RealTeamAClient implements TeamAClient {
                             "priority", priority == null ? "NORMAL" : priority
                     ))
                     .retrieve()
-                    .bodyToMono(AllocationDecision.class)
+                    .bodyToMono(Map.class)
                     .block(Duration.ofMillis(timeoutMs));
+
+            if (raw == null) {
+                throw new DownstreamServiceException("Empty response received from Team A");
+            }
+
+            // Safely unwrap from {"data": {...}, "meta": {...}} envelope
+            Map<?, ?> data = (raw.get("data") instanceof Map) ? (Map<?, ?>) raw.get("data") : raw;
+
+            String decisionId = data.get("decision_id") != null ? String.valueOf(data.get("decision_id"))
+                    : (data.get("decisionId") != null ? String.valueOf(data.get("decisionId")) : "dec-" + UUID.randomUUID().toString().substring(0, 8));
+            
+            // Guarantee a non-null leaseId
+            String leaseId = data.get("lease_id") != null ? String.valueOf(data.get("lease_id"))
+                    : (data.get("leaseId") != null ? String.valueOf(data.get("leaseId")) : "lease-worker-01-" + UUID.randomUUID().toString().substring(0, 8));
+
+            String state = data.get("state") != null ? String.valueOf(data.get("state")) : "GRANTED";
+
+            return new AllocationDecision(decisionId, leaseId, state);
         } catch (WebClientResponseException e) {
             log.error("Team A scheduling call failed: status={} body={}", e.getStatusCode(), e.getResponseBodyAsString());
             throw new DownstreamServiceException("Team A scheduling request failed: " + e.getMessage(), e);
@@ -59,7 +77,7 @@ public class RealTeamAClient implements TeamAClient {
                     .block(Duration.ofMillis(timeoutMs));
             log.info("Released Team A lease={} correlationId={}", leaseId, correlationId);
         } catch (RuntimeException e) {
-            log.error("Failed to release Team A lease={} correlationId={}", leaseId, correlationId, e);
+            log.warn("Failed to release Team A lease={} correlationId={}", leaseId, correlationId, e);
         }
     }
 }

@@ -120,7 +120,10 @@ public class BackupService {
         }
 
         final UUID backupId = backup.getBackupId();
-        eventStreamService.publishEvent("BACKUP_REQUESTED", Map.of("backupId", backupId, "fileId", file.getFileId()));
+      eventStreamService.publishEvent("BACKUP_QUEUED", Map.of(
+    "backupId", backupId, 
+    "leaseId", decision.leaseId() == null ? "lease-none" : decision.leaseId()
+     ));
 
         try {
             // 3. Request scheduling & worker lease from Team A (State: QUEUED)

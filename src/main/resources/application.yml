@@ -26,9 +26,9 @@ server:
 
 teamc:
   integration:
-    team-a-base-url: http://localhost:8081
-    team-b-base-url: http://localhost:8082
-    use-mock-clients: true
+    team-a-base-url: https://teama-project.onrender.com
+    team-b-base-url: https://teamb-qlpv.onrender.com
+    use-mock-clients: false
     call-timeout-ms: 3000
 
 springdoc:
