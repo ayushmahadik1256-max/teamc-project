@@ -29,7 +29,7 @@ teamc:
     team-a-base-url: https://teama-project.onrender.com
     team-b-base-url: https://teamb-qlpv.onrender.com
     use-mock-clients: false
-    call-timeout-ms: 3000
+    call-timeout-ms: 30000
 
 springdoc:
   swagger-ui:

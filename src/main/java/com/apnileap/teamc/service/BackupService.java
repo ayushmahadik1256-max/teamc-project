@@ -139,7 +139,10 @@ public class BackupService {
             });
             backup.setDecisionId(decision.decisionId());
             backup.setLeaseId(decision.leaseId());
-            eventStreamService.publishEvent("BACKUP_QUEUED", Map.of("backupId", backupId, "leaseId", decision.leaseId()));
+           eventStreamService.publishEvent("BACKUP_DEDUPLICATING", Map.of(
+            "backupId", backupId, 
+         "dedupResultId", dedup.dedupResultId() == null ? "" : dedup.dedupResultId()
+         ));
 
             // 4 & 5. Chunking & deduplication via Team B (State: CHUNKING -> DEDUPLICATING)
             requiresNewTx.executeWithoutResult(status -> {

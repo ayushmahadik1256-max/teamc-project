@@ -39,10 +39,10 @@ public class RealTeamBClient implements TeamBClient {
                     .block(Duration.ofMillis(timeoutMs));
 
             if (raw == null) {
-                throw new DownstreamServiceException("Empty response from Team B");
+                throw new DownstreamServiceException("Empty response received from Team B");
             }
 
-            // Safely unwrap data
+            // Safely unwrap data from {"data": {...}, "meta": {...}} envelope
             Map<?, ?> data = (raw.get("data") instanceof Map) ? (Map<?, ?>) raw.get("data") : raw;
 
             String dedupId = String.valueOf(data.getOrDefault("dedup_result_id", data.getOrDefault("dedupResultId", "dedup-" + UUID.randomUUID().toString().substring(0, 8))));
@@ -81,10 +81,10 @@ public class RealTeamBClient implements TeamBClient {
             if (raw == null) return false;
             Map<?, ?> data = (raw.get("data") instanceof Map) ? (Map<?, ?>) raw.get("data") : raw;
 
-            // Check both "is_valid" (Team B format) and "verified"
+            // Check is_valid, verified, or root-level verified
             return Boolean.TRUE.equals(data.get("is_valid")) || Boolean.TRUE.equals(data.get("verified")) || Boolean.TRUE.equals(raw.get("verified"));
         } catch (RuntimeException e) {
-            log.warn("Team B integrity verification failed fileId={} correlationId={}", fileId, correlationId, e);
+            log.warn("Team B integrity verification call failed fileId={} correlationId={}", fileId, correlationId, e);
             return false;
         }
     }
