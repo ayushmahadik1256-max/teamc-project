@@ -23,6 +23,10 @@ spring:
     baseline-on-migrate: true
 server:
   port: 8083
+  tomcat:
+    accesslog:
+      enabled: true
+      pattern: "\"%r\" %s (%D ms)"
 
 teamc:
   integration:
